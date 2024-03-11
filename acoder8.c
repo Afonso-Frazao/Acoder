@@ -14,17 +14,41 @@ char appop(char num, char key, char op){ //apply operation
 	switch(op){
 		case 0:
 			num+=key;
+			break;
 		case 1:
 			num-=key;
+			break;
 		case 2:
 			num^=key;
+			break;
 		case 3:
-			printf("num=%hhd\nshift=%hhd\n", num, key&7);
 			num=(num<<(key&7)) | ((num>>((sizeof(char)*8)-(key&7)))&((1<<(key&7))-1));
-			printf("new num: %hhd\n\n", num);
 			if((key&8)==8){
 				num=~num;
 			}
+			break;
+	}
+
+	return num;
+}
+
+char reappop(char num, char key, char op){ //apply reverse operation
+	switch(op){
+		case 0:
+			num-=key;
+			break;
+		case 1:
+			num+=key;
+			break;
+		case 2:
+			num^=key;
+			break;
+		case 3:
+			num=(num<<((sizeof(char)*8)-(key&7))) | ((num>>(key&7))&((1<<((sizeof(char)*8)-(key&7)))-1));
+			if((key&8)==8){
+				num=~num;
+			}
+			break;
 	}
 
 	return num;
@@ -59,10 +83,6 @@ int main(int argc, char **argv){
 	keyn=atol(argv[3]);
 	key=&keyn;
 
-	printf("keyn: %ld\n", keyn);
-
-	printf("key: %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd\n", key[0], key[1], key[2], key[3], key[4], key[5], key[6], key[7]);
-
 	if(mode=='e' || mode=='E'){ //encrypt
 
 		foutname=(char*)malloc(108*sizeof(char));
@@ -92,11 +112,17 @@ int main(int argc, char **argv){
 
 			fprintf(fp2, "%c", buff);
 
-			keykey=module(key[0]); //number to encrypt key
+			for(i=0; i<8; i++){
+				keykey=module(key[i]); //number to encrypt key
+				if(keykey!=0){
+					break;
+				}
+			}
+			if(keykey==0){
+				keykey=85;
+			}
 			opslc=module(key[keykey%7]) + module(((short)(key[(keykey%7)+1]))<<8); //number to select the operations
 			opord=module(key[opslc%8]); //number to select the operation array order
-
-			printf("1 keykey: %hhd\nopslc: %hd\nopord: %hhd\n\n", keykey, opslc, opord);
 
 			for(i=0; i<4; i++){
 				j=((opord>>(i*2))&3);
@@ -109,14 +135,13 @@ int main(int argc, char **argv){
 				j=((opslc>>(i*2))&3);
 				key[i]=appop(key[i], keykey, ops[j]);
 			}
-			printf("2 keykey: %hhd\nopslc: %hd\nopord: %hhd\n\n", keykey, opslc, opord);
-
-			printf("key: %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd", key[7], key[6], key[5], key[4], key[3], key[2], key[1], key[0]);
-
-			printf("current: %ld\n\n", keyn);
+			//printf("key: %ld\n", keyn);
 		}
+		//fprintf(fp2, "\n");
+
 	}
 	else if(mode=='d' || mode=='D'){ //decrypt
+
 		foutname=(char*)malloc(109*sizeof(char));
 
 		for(i=0; finname[i]!='.'; i++){
@@ -129,15 +154,46 @@ int main(int argc, char **argv){
 		fp=fopen(finname, "r");
 		fp2=fopen(foutname, "w+");
 
-		while(fscanf(fp, "%c", &buff)!=EOF){
-			buff+=key[3];
-			buff=~buff;
-			buff^=key[2];
-			buff-=key[1];
-			buff^=key[0];
+		ops=(char*)malloc(4*sizeof(char));
 
-			fprintf(fp2, "%c", buff);
+        for(i=0; i<4; i++){
+            ops[i]=i;
+        }
+
+		while(fscanf(fp, "%c", &buff)!=EOF){
+
+			for(i=7; i>=0; i--){
+                buff=reappop(buff, key[i], (key[i]%4));
+            }
+
+            fprintf(fp2, "%c", buff);
+
+            for(i=0; i<8; i++){
+                keykey=module(key[i]); //number to decrypt key
+                if(keykey!=0){
+                    break;
+                }
+            }
+            if(keykey==0){
+                keykey=85;
+            }
+            opslc=module(key[keykey%7]) + module(((short)(key[(keykey%7)+1]))<<8); //number to select the operations
+            opord=module(key[opslc%8]); //number to select the operation array order
+
+            for(i=0; i<4; i++){
+                j=((opord>>(i*2))&3);
+                buff=ops[i];
+                ops[i]=ops[j];
+                ops[j]=buff;
+            }
+
+            for(i=0; i<8; i++){
+                j=((opslc>>(i*2))&3);
+                key[i]=appop(key[i], keykey, ops[j]);
+            }
+			//printf("key: %ld\n", keyn);
 		}
+
 	}
 	else{
 		return(1);
@@ -147,7 +203,7 @@ int main(int argc, char **argv){
 	fclose(fp2);
 
 	free(finname);
-	//free(foutname);
+	free(foutname);
 
 	return 0;
 }
