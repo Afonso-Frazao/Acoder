@@ -7,8 +7,9 @@ int main(int argc, char *argv[]){
 	fp=fopen(argv[1], "r");
 
 	while(fscanf(fp, "%c", &buff)!=EOF){
-		printf("%hhd ", buff);
+		printf("%hhd, ", buff);
 	}
+	printf("\n");
 
 	fclose(fp);
 
