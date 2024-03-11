@@ -10,7 +10,7 @@ char module(char num){
 	}
 }
 
-char appop(char num, char key, char op){ //apply operation
+char appop(unsigned char num, unsigned char key, char op){ //apply operation
 	switch(op){
 		case 0:
 			num+=key;
@@ -19,7 +19,12 @@ char appop(char num, char key, char op){ //apply operation
 		case 2:
 			num^=key;
 		case 3:
-			num=(num<<(key&7)) | (num>>((sizeof(char)*8)-(key&7)));
+			printf("num before shift '%hhd': %hhd\n", (key&7), num);
+			printf("left: %hhd\nright: %hhd\n", num<<(key&7), (num>>((sizeof(char)*8)-(key&7))));
+			if(num>=0){
+				num=(num<<(key&7)) | (num>>((sizeof(char)*8)-(key&7)));
+			}
+			printf("num after shift '%hhd': %hhd\n", (key&7), num);
 			if((key&15)==15){
 				num=~num;
 			}
