@@ -56,14 +56,15 @@ char reappop(char num, char key, char op){ //apply reverse operation
 
 int main(int argc, char **argv){
 	char mode;
-	int i, j;
+	int i, j, fncount; //file name count
 	long keyn;
 	char *finname, *foutname, *key;
 	char keykey, opord;
 	short opslc;
 	char *ops;
-	char eoutname[12]="_acoded.txt";
-	char doutname[13]="_decoded.txt";
+	char foutname[11]="acoded.txt";
+	//char eoutname[12]="_acoded.txt";
+	//char doutname[13]="_decoded.txt";
 	char buff;
 	FILE *fp, *fp2;
 
@@ -74,28 +75,28 @@ int main(int argc, char **argv){
 
 	mode=argv[1][0];
 	finname=(char*)malloc(100*sizeof(char));
-	for(i=0; argv[2][i]!=0; i++){
-		finname[i]=argv[2][i];
+	for(fncount=0; argv[2][fncount]!=0; fncount++){
+		finname[fncount]=argv[2][fncount];
 	}
-	finname[i]=0;
-
+	finname[fncount]=0;
+	fncount--;
 
 	keyn=atol(argv[3]);
 	key=&keyn;
 
 	if(mode=='e' || mode=='E'){ //encrypt
 
-		foutname=(char*)malloc(108*sizeof(char));
+		/*foutname=(char*)malloc(108*sizeof(char));
 
 		for(i=0; finname[i]!='.'; i++){
 			foutname[i]=finname[i];
 		}
 		for(j=0; j<12; j++, i++){
 			foutname[i]=eoutname[j];
-		}
+		}*/
 
 
-		fp=fopen(finname, "r");
+		fp=fopen(finname, "rb");
 		fp2=fopen(foutname, "w+");
 
 		ops=(char*)malloc(4*sizeof(char));
@@ -112,7 +113,11 @@ int main(int argc, char **argv){
 
 			fprintf(fp2, "%c", buff);
 
-			if(key[7]<-64){ //create trash information
+			if(key[7]<-64){ //create trash information/hide the file name
+				if(fncount>0){
+					fprintf(fp2, "%c", appop(appop(finname[fncount], key[6], (key[5]%4)), key[4], (key[3]%4)));
+					fncount--;
+				}
 				fprintf(fp2, "%c", appop(appop(buff, key[6], (key[5]%4)), key[4], (key[3]%4)));
 			}
 
