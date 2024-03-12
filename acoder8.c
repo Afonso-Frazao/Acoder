@@ -68,7 +68,7 @@ int main(int argc, char **argv){
 	FILE *fp, *fp2;
 
 	if(argc!=4){
-		fprintf(stdout, "Please write in the format: './acoder M NAME KEY'\nM - operating mode:\t'e' or 'E' for encoding\n\t\t\t'd' or 'D' for decoding\nNAME - name of the file to be encoded\nKEY - encoding key: between -2147483648 and 2147483647\n\n");
+		fprintf(stdout, "Usage: './acoder M NAME KEY'\nM - operating mode:\t'e' or 'E' for encoding\n\t\t\t'd' or 'D' for decoding\nNAME - name of the file to be encoded\nKEY - encoding key: between -9.223.372.036.854.775.808 and 9.223.372.036.854.775.808\n\n");
 		return(1);
 	}
 
@@ -112,6 +112,10 @@ int main(int argc, char **argv){
 
 			fprintf(fp2, "%c", buff);
 
+			if(key[7]<-64){ //create trash information
+				fprintf(fp2, "%c", appop(appop(buff, key[6], (key[5]%4)), key[4], (key[3]%4)));
+			}
+
 			for(i=0; i<8; i++){
 				keykey=module(key[i]); //number to encrypt key
 				if(keykey!=0){
@@ -135,9 +139,7 @@ int main(int argc, char **argv){
 				j=((opslc>>(i*2))&3);
 				key[i]=appop(key[i], keykey, ops[j]);
 			}
-			//printf("key: %ld\n", keyn);
 		}
-		//fprintf(fp2, "\n");
 
 	}
 	else if(mode=='d' || mode=='D'){ //decrypt
@@ -168,6 +170,10 @@ int main(int argc, char **argv){
 
             fprintf(fp2, "%c", buff);
 
+			if(key[7]<-64){ //discard trash information
+				fseek(fp, 1, SEEK_CUR);
+			}
+
             for(i=0; i<8; i++){
                 keykey=module(key[i]); //number to decrypt key
                 if(keykey!=0){
@@ -191,7 +197,6 @@ int main(int argc, char **argv){
                 j=((opslc>>(i*2))&3);
                 key[i]=appop(key[i], keykey, ops[j]);
             }
-			//printf("key: %ld\n", keyn);
 		}
 
 	}
