@@ -32,7 +32,7 @@ char appop(char num, char key, char op){ //apply operation
 	return num;
 }
 
-char reappop(char num, char key, char op){ //apply reverse operation
+char unppop(char num, char key, char op){ //apply reverse operation
 	switch(op){
 		case 0:
 			num-=key;
@@ -54,11 +54,43 @@ char reappop(char num, char key, char op){ //apply reverse operation
 	return num;
 }
 
+void encryptkey(char *key, char *ops){
+	char buff, keykey, opord;
+	short opslc;
+	int i, j;
+
+	for(i=0; i<8; i++){
+        keykey=module(key[i]); //number to encrypt key
+        if(keykey!=0){
+			break;
+        }
+    }
+    if(keykey==0){
+    	keykey=85;
+    }
+    opslc=module(key[keykey%7]) + module(((short)(key[(keykey%7)+1]))<<8); //number to select the operations
+    opord=module(key[opslc%8]); //number to select the operation array order
+
+	for(i=0; i<4; i++){
+        j=((opord>>(i*2))&3);
+        buff=ops[i];
+        ops[i]=ops[j];
+        ops[j]=buff;
+    }
+
+    for(i=0; i<8; i++){
+        j=((opslc>>(i*2))&3);
+        key[i]=appop(key[i], keykey, ops[j]);
+    }
+
+	return;
+}
+
 int main(int argc, char **argv){
-	char mode;
+	char mode, fnsize;
 	int i, j, fncount; //file name count
 	long keyn;
-	char *finname, *foutname, *key;
+	char *finname, *dename, *key;
 	char keykey, opord;
 	short opslc;
 	char *ops;
@@ -79,98 +111,93 @@ int main(int argc, char **argv){
 		finname[fncount]=argv[2][fncount];
 	}
 	finname[fncount]=0;
-	fncount--;
+	printf("fncount: %d\n", fncount);
 
 	keyn=atol(argv[3]);
 	key=&keyn;
 
+	ops=(char*)malloc(4*sizeof(char));
+
+	for(i=0; i<4; i++){
+    	ops[i]=i;
+    }
+
 	if(mode=='e' || mode=='E'){ //encrypt
-
-		/*foutname=(char*)malloc(108*sizeof(char));
-
-		for(i=0; finname[i]!='.'; i++){
-			foutname[i]=finname[i];
-		}
-		for(j=0; j<12; j++, i++){
-			foutname[i]=eoutname[j];
-		}*/
-
 
 		fp=fopen(finname, "rb");
 		fp2=fopen(foutname, "w+");
 
-		ops=(char*)malloc(4*sizeof(char));
-
-		for(i=0; i<4; i++){
-			ops[i]=i;
+		buff=(char)fncount;
+		for(i=0; i<8; i++){ //write file name size
+            buff=appop(buff, key[i], ops[module(key[i]%4)]);
+        }
+		encryptkey(key, ops);
+		printf("acoded: %hhd\n", buff);
+		fprintf(fp2, "%c", buff);
+		
+		for(i=0; i<fncount; i++){ //write file name
+			buff=finname[i];
+			for(j=0; j<8; j++){
+				buff=appop(buff, key[j], ops[module(key[j]%4)]);
+			}
+			fprintf(fp2, "%c", buff);
+			encryptkey(key, ops);
 		}
 
 		while(fscanf(fp, "%c", &buff)!=EOF){
-
+			
 			for(i=0; i<8; i++){
-				buff=appop(buff, key[i], (key[i]%4));
+				buff=appop(buff, key[i], ops[module(key[i]%4)]);
 			}
 
 			fprintf(fp2, "%c", buff);
 
 			if(key[7]<-64){ //create trash information/hide the file name
-				if(fncount>0){
-					fprintf(fp2, "%c", appop(appop(finname[fncount], key[6], (key[5]%4)), key[4], (key[3]%4)));
-					fncount--;
-				}
-				fprintf(fp2, "%c", appop(appop(buff, key[6], (key[5]%4)), key[4], (key[3]%4)));
+				buff=key[6];
+				for(i=0; i<8; i++){
+                	buff=appop(buff, key[i], ops[module(key[i]%4)]);
+            	}
+				fprintf(fp2, "%c", buff);
 			}
 
-			for(i=0; i<8; i++){
-				keykey=module(key[i]); //number to encrypt key
-				if(keykey!=0){
-					break;
-				}
-			}
-			if(keykey==0){
-				keykey=85;
-			}
-			opslc=module(key[keykey%7]) + module(((short)(key[(keykey%7)+1]))<<8); //number to select the operations
-			opord=module(key[opslc%8]); //number to select the operation array order
-
-			for(i=0; i<4; i++){
-				j=((opord>>(i*2))&3);
-				buff=ops[i];
-				ops[i]=ops[j];
-				ops[j]=buff;
-			}
-
-			for(i=0; i<8; i++){
-				j=((opslc>>(i*2))&3);
-				key[i]=appop(key[i], keykey, ops[j]);
-			}
+			encryptkey(key, ops);
 		}
 
 	}
 	else if(mode=='d' || mode=='D'){ //decrypt
 
-		foutname=(char*)malloc(109*sizeof(char));
+		fp=fopen(finname, "rb");
 
-		for(i=0; finname[i]!='.'; i++){
-			foutname[i]=finname[i];
+		fscanf(fp, "%c", &fnsize);
+		printf("received: %hhd\n", fnsize);
+		for(i=7; i>=0; i--){
+			fnsize=unppop(fnsize, key[i], ops[module(key[i]%4)]);
 		}
-		for(j=0; j<13; j++, i++){
-			foutname[i]=doutname[j];
+		encryptkey(key, ops);
+
+		printf("decoded: %hhd\n", fnsize);
+
+		dename=(char*)malloc((fnsize+1)*sizeof(char));
+
+		for(i=0; i<fnsize; i++){
+			fscanf(fp, "%c", &buff);
+			for(j=7; j>=0; j--){
+				//printf("%hhd\n", key[j]);
+				//printf("%hhd\n", ops[module(key[j]%4)]);
+				buff=unppop(buff, key[j], ops[module(key[j]%4)]);
+			}
+			encryptkey(key, ops);
+			dename[i]=buff;
+			printf("\t%c\n", buff);
 		}
+		dename[fnsize]=0;
 
-		fp=fopen(finname, "r");
-		fp2=fopen(foutname, "w+");
-
-		ops=(char*)malloc(4*sizeof(char));
-
-        for(i=0; i<4; i++){
-            ops[i]=i;
-        }
+		fp2=fopen(dename, "w+");
 
 		while(fscanf(fp, "%c", &buff)!=EOF){
 
 			for(i=7; i>=0; i--){
-                buff=reappop(buff, key[i], (key[i]%4));
+                buff=unppop(buff, key[i], ops[module(key[i]%4)]);
             }
 
             fprintf(fp2, "%c", buff);
@@ -179,29 +206,7 @@ int main(int argc, char **argv){
 				fseek(fp, 1, SEEK_CUR);
 			}
 
-            for(i=0; i<8; i++){
-                keykey=module(key[i]); //number to decrypt key
-                if(keykey!=0){
-                    break;
-                }
-            }
-            if(keykey==0){
-                keykey=85;
-            }
-            opslc=module(key[keykey%7]) + module(((short)(key[(keykey%7)+1]))<<8); //number to select the operations
-            opord=module(key[opslc%8]); //number to select the operation array order
-
-            for(i=0; i<4; i++){
-                j=((opord>>(i*2))&3);
-                buff=ops[i];
-                ops[i]=ops[j];
-                ops[j]=buff;
-            }
-
-            for(i=0; i<8; i++){
-                j=((opslc>>(i*2))&3);
-                key[i]=appop(key[i], keykey, ops[j]);
-            }
+            encryptkey(key, ops);
 		}
 
 	}
@@ -213,7 +218,6 @@ int main(int argc, char **argv){
 	fclose(fp2);
 
 	free(finname);
-	free(foutname);
 
 	return 0;
 }
